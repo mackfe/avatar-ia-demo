@@ -1,10 +1,17 @@
-# Avatar ICAIA — Holograma Interactivo
+# Avatar Interactivo de IA — Holograma (HeyGen + n8n + RAG)
 
-Asistente virtual con avatar de streaming en tiempo real (LiveAvatar / HeyGen) para el evento **ICAIA (Índice de Capacidades Argentinas en Inteligencia Artificial)** del Observatorio de IA de UTN Buenos Aires.
+Asistente virtual con avatar de streaming en tiempo real (HeyGen LiveAvatar) para eventos, kioskos interactivos y atención digital. Desplegado como holograma interactivo en el evento **ICAIA** del Observatorio de IA de UTN Buenos Aires.
 
-- **Cerebro**: flujo de n8n "Avatar ICAIA" (agente + RAG sobre el brochure de UTN/CIAA en PGVector)
-- **Rostro y voz**: avatar femenino de medio cuerpo (LiveAvatar), fondo negro puro para holograma
-- **Modo kiosko**: arranque automático, fullscreen, auto-reconexión 24/7 (sin timeout de inactividad)
+**Proyecto de José Rodríguez (mackfe) — Demo pública**
+
+## Funcionalidades
+
+- ✅ Avatar de medio cuerpo en streaming en tiempo real (WebRTC, baja latencia).
+- ✅ Interacción por **texto y voz** con respuestas habladas al instante.
+- ✅ **Cerebro multi-agente**: flujo de n8n con agente + RAG sobre documentación (PGVector).
+- ✅ Memoria persistente por sesión (PostgreSQL chat memory).
+- ✅ **Modo kiosko**: arranque automático, fullscreen y auto-reconexión 24/7.
+- ✅ Dos modos de inteligencia: Knowledge Base de HeyGen o LLM externo (Gemini/DeepSeek) vía Genkit.
 
 ## Arquitectura
 
@@ -12,88 +19,21 @@ Asistente virtual con avatar de streaming en tiempo real (LiveAvatar / HeyGen) p
 [ Pantalla del evento (Chromium kiosko) ]
         │  WebRTC (video + audio)
         ▼
- Next.js app (este repo) ── POST /api/auth ──► LiveAvatar (token de sesión)
+ Next.js app ── POST /api/auth ──► LiveAvatar (token de sesión)
         │
         │  POST { sessionId, message, language }
         ▼
  n8n "Avatar ICAIA" (/webhook/icaia-avatar)
    ├─ AI Agent (OpenAI gpt-4.1-mini)
    ├─ Postgres Chat Memory (memoria por sesión)
-   └─ Vector Store PGVector "icaia_vectors" (RAG del brochure)
+   └─ Vector Store PGVector (RAG del brochure)
         │
-        └─ JSON { response, suggestions } → el avatar lo habla (avatar.repeat)
+        └─ JSON { response, suggestions } → el avatar lo habla
 ```
 
-El stream WebRTC de LiveAvatar solo puede reproducirse en el navegador (la pantalla). Por eso n8n es el "cerebro" (razona + RAG) y la app + LiveAvatar son el "actor" (hablan y gesticulan). El avatar queda siempre activo: sin timeout que cierre la sesión y con reconexión automática con backoff ante cualquier corte.
+## Stack
+Next.js · TypeScript · HeyGen Streaming Avatar SDK · WebRTC/LiveKit · n8n · PostgreSQL (PGVector) · Google Genkit
 
-## Requisitos
+---
 
-- Node.js 18+ (desarrollo)
-- Una **LiveAvatar API Key** (NO es la key de api.heygen.com): se obtiene en https://app.liveavatar.com/developers
-- Acceso al servidor n8n con los flujos "Avatar ICAIA" e "ICAIA - Ingesta de Documentos"
-
-## Variables de entorno (`.env`)
-
-```env
-# REQUERIDO: LiveAvatar API Key (https://app.liveavatar.com/developers)
-HEYGEN_API_KEY=""
-
-# Avatar (femenino por defecto: Elenora Tech Expert)
-NEXT_PUBLIC_AVATAR_ID="8175dfc2-7858-49d6-b5fa-0c135d1c4bad"
-
-# Voces (opcional; vacío = voz por defecto del avatar)
-LIVEAVATAR_VOICE_ES=""
-LIVEAVATAR_VOICE_EN=""
-
-# (Opcional) Knowledge Base de HeyGen. Dejar vacío.
-NEXT_PUBLIC_HEYGEN_KB_ID=""
-
-# Webhook de n8n del agente
-N8N_WEBHOOK_URL="https://rpa11.cognitive.la/webhook/icaia-avatar"
-
-# Arranca en modo kiosko/holograma directamente (true/false)
-NEXT_PUBLIC_KIOSK_MODE="false"
-```
-
-## Modo kiosko / holograma
-
-- URL: `http://<host>:9004/kiosk` (arranca en pantalla de espera; auto-fullscreen al primer gesto, oculta el HUD y el cursor, sin subtítulos)
-- **Teclas en kiosko:** `F2` inicia el avatar · `F3` detiene la sesión (vuelve a la espera)
-- O en cualquier ruta con `?kiosk=1`, o con `NEXT_PUBLIC_KIOSK_MODE=true`
-- El avatar **nunca se desconecta por inactividad** y se reconecta solo si se cae (5s → 60s backoff)
-- En la pantalla del evento usar Chromium en modo kiosko:
-  ```bash
-  chromium --kiosk --noerrdialogs --start-fullscreen http://<host>:9004/kiosk
-  ```
-  Con un watchdog (systemd/PM2) que relance el navegador si la pestaña muere.
-
-## Desarrollo
-
-```bash
-npm install
-npm run dev        # http://localhost:9002
-npm run build      # producción
-npm run start      # http://localhost:9004
-```
-
-## Docker (servidor)
-
-```bash
-cp .env.example .env   # completar HEYGEN_API_KEY y N8N_WEBHOOK_URL
-docker compose up -d --build
-```
-
-El contenedor corre con `restart: always` + healthcheck, listo para operación 24/7.
-
-## Flujos de n8n
-
-| Flujo | Webhook | Función |
-|---|---|---|
-| Avatar ICAIA | `POST /webhook/icaia-avatar` | Agente con RAG que responde `{response, suggestions}` |
-| ICAIA - Ingesta de Documentos | `POST /webhook/icaia-ingest` | Carga un PDF (`-F "data=@archivo.pdf"`) a la vector store |
-| ICAIA - Limpiar Vector Store | `POST /webhook/icaia-clean` | Borra la tabla `icaia_vectors` para re-ingerir |
-
-Ingesta de un documento nuevo:
-```bash
-curl -X POST -F "data=@nuevo_documento.pdf" https://rpa11.cognitive.la/webhook/icaia-ingest
-```
+*Nota: repositorio demo con una selección representativa del código del cerebro de IA. El proyecto completo es privado.*
